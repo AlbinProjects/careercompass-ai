@@ -48,7 +48,7 @@ const SESSIONS = [
   {id:"jobs",       label:"Job Market"},
   {id:"resume",     label:"Resume Builder"},
   {id:"planner",    label:"Study Planner"},
-  {id:"internship", label:"Courses & Internships"},
+  {id:"internship", label:"Courses & Internship"},
   {id:"mentor",     label:"AI Mentor 🔒"},
 ];
 
@@ -305,14 +305,14 @@ export default function App() {
   ]);
   const [newExam,setNewExam]=useState({name:"",date:""});
   const [schedule,setSchedule]=useState([
-    {id:1,day:"Monday",    subject:"Mathematics",time:"6:00 AM",dur:"2h",col:C.sky},
-    {id:2,day:"Monday",    subject:"Physics",    time:"8:00 AM",dur:"1.5h",col:C.teal},
-    {id:3,day:"Tuesday",   subject:"Chemistry",  time:"6:00 AM",dur:"2h",col:C.mint},
-    {id:4,day:"Tuesday",   subject:"English",    time:"8:00 AM",dur:"1h",col:C.lavender},
-    {id:5,day:"Wednesday", subject:"Mathematics",time:"6:00 AM",dur:"2h",col:C.sky},
-    {id:6,day:"Thursday",  subject:"Biology",    time:"6:00 AM",dur:"2h",col:C.gold},
-    {id:7,day:"Friday",    subject:"Revision",   time:"6:00 AM",dur:"3h",col:C.accent},
-    {id:8,day:"Saturday",  subject:"Mock Test",  time:"9:00 AM",dur:"3h",col:C.orange},
+    {id:1,day:"Monday",    subject:"Mathematics",time:"06:00",dur:"2h",col:C.sky},
+    {id:2,day:"Monday",    subject:"Physics",    time:"08:00",dur:"1.5h",col:C.teal},
+    {id:3,day:"Tuesday",   subject:"Chemistry",  time:"06:00",dur:"2h",col:C.mint},
+    {id:4,day:"Tuesday",   subject:"English",    time:"08:00",dur:"1h",col:C.lavender},
+    {id:5,day:"Wednesday", subject:"Mathematics",time:"06:00",dur:"2h",col:C.sky},
+    {id:6,day:"Thursday",  subject:"Biology",    time:"06:00",dur:"2h",col:C.gold},
+    {id:7,day:"Friday",    subject:"Revision",   time:"06:00",dur:"3h",col:C.accent},
+    {id:8,day:"Saturday",  subject:"Mock Test",  time:"09:00",dur:"3h",col:C.orange},
   ]);
   const [newSched,setNewSched]=useState({day:"Monday",subject:"",time:"06:00",dur:"1h"});
   const [habits,setHabits]=useState([
@@ -477,7 +477,7 @@ export default function App() {
           ["📊","Job Market","Demand scores & salary trends",C.teal,"jobs"],
           ["⊗","Resume Builder","ATS-friendly resume builder",C.mint,"resume"],
           ["📋","Study Planner","Goals, exam countdowns, habits & schedule",C.mint,"planner"],
-          ["💼","Courses & Internships","Curated courses & internship finder — coming soon","#94a3b8","internship"],
+          ["💼","Courses & Internship","Curated courses & internship finder — coming soon","#94a3b8","internship"],
           ["◈","AI Mentor","Claude AI powered — coming soon",C.textMuted,"mentor"],
         ].map(([icon,title,desc,col,sid])=>(
           <div key={title} style={{...st.card(C.cardBorder),borderLeft:`3px solid ${col}`,padding:"12px",cursor:"pointer",marginBottom:0}} onClick={()=>setSession(sid)}>
@@ -1462,8 +1462,15 @@ export default function App() {
         <div style={st.card()}>
           <div style={{fontWeight:600,fontSize:"11px",color:C.accent,marginBottom:"9px"}}>+ Add Exam</div>
           <input value={newExam.name} onChange={e=>setNewExam(x=>({...x,name:e.target.value}))} placeholder="Exam name e.g. JEE Main 2026" style={{...st.input,marginBottom:"7px"}}/>
-          <input type="date" value={newExam.date} onChange={e=>setNewExam(x=>({...x,date:e.target.value}))} style={{...st.input,marginBottom:"7px"}}/>
-          <button onClick={()=>{if(newExam.name&&newExam.date){setPlanExams(es=>[...es,{id:Date.now(),...newExam,color:C.sky}]);setNewExam({name:"",date:""});}}} style={st.btn(C.accent)}>Add Exam</button>
+          <input type="date" value={newExam.date} onChange={e=>setNewExam(x=>({...x,date:e.target.value}))}
+            style={{...st.input,marginBottom:"7px",colorScheme:"dark",color:C.textPrimary,background:C.bg}}/>
+          {newExam.name&&!newExam.date&&<div style={{fontSize:"10px",color:C.gold,marginBottom:"5px"}}>⚠ Please pick a date above</div>}
+          <button onClick={()=>{
+            if(newExam.name&&newExam.date){
+              setPlanExams(es=>[...es,{id:Date.now(),name:newExam.name,date:newExam.date,color:C.sky}]);
+              setNewExam({name:"",date:""});
+            }
+          }} style={{...st.btn(C.accent),opacity:newExam.name&&newExam.date?1:0.5}}>Add Exam</button>
         </div>
       </div>)}
 
@@ -1478,7 +1485,7 @@ export default function App() {
               <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
                 {dayItems.map(s=>(
                   <div key={s.id} style={{background:C.bg,border:`1px solid ${s.col}44`,borderLeft:`3px solid ${s.col}`,borderRadius:"10px",padding:"8px 12px",display:"flex",alignItems:"center",gap:"10px"}}>
-                    <div style={{width:"52px",fontSize:"10px",color:C.textSecondary,flexShrink:0}}>{s.time}</div>
+                    <div style={{width:"52px",fontSize:"10px",color:C.textSecondary,flexShrink:0}}>{(()=>{const [h,m]=s.time.split(":");const hr=parseInt(h);return `${hr===0?12:hr>12?hr-12:hr}:${m} ${hr<12?"AM":"PM"}`})()}</div>
                     <div style={{flex:1,fontWeight:600,fontSize:"12px"}}>{s.subject}</div>
                     <span style={{fontSize:"10px",padding:"2px 7px",borderRadius:"20px",background:`${s.col}22`,color:s.col}}>{s.dur}</span>
                     <button onClick={()=>setSchedule(ss=>ss.filter(x=>x.id!==s.id))} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:"14px"}}>×</button>
@@ -1494,7 +1501,11 @@ export default function App() {
             <select value={newSched.day} onChange={e=>setNewSched(s=>({...s,day:e.target.value}))} style={{...st.input,padding:"9px 12px"}}>
               {DAYS_FULL.map(d=><option key={d} value={d}>{d}</option>)}
             </select>
-            <input type="time" value={newSched.time} onChange={e=>setNewSched(s=>({...s,time:e.target.value}))} style={st.input}/>
+            <input type="time" id="sched-time"
+              defaultValue={newSched.time}
+              onChange={e=>setNewSched(s=>({...s,time:e.target.value}))}
+              style={{...st.input,colorScheme:"dark",color:C.textPrimary,background:C.bg,
+                WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}/>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px",marginBottom:"7px"}}>
             <input value={newSched.subject} onChange={e=>setNewSched(s=>({...s,subject:e.target.value}))} placeholder="Subject / Activity" style={st.input}/>
@@ -1602,19 +1613,28 @@ export default function App() {
       case "jobs":       return renderJobs();
       case "resume":     return renderResume();
       case "planner":    return renderPlanner();
-      case "internship": return comingSoon("💼","Courses & Internships","Curated courses and internship finder for your career","#94a3b8",["🔍 Listings matching your assessment","📍 Filter by location & stipend","🏢 Top companies","📝 One-click resume + JD match"]);
+      case "internship": return comingSoon("💼","Courses & Internship","Curated courses and internship finder for your career","#94a3b8",["🔍 Listings matching your assessment","📍 Filter by location & stipend","🏢 Top companies","📝 One-click resume + JD match"]);
       case "mentor":     return comingSoon("🔒","AI Mentor","Claude AI career counsellor",C.textMuted,["What careers suit me?","Best colleges for CSE in Kerala?","How to crack NEET in 6 months?","Scholarships for engineering students?"]);
       default:           return renderHome();
     }
   };
 
-  return(<div style={{minHeight:"100vh",background:C.bg,color:C.textPrimary,fontFamily:"'Space Grotesk','Segoe UI',sans-serif",display:"flex",flexDirection:"column"}}>
-    <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#2a2a45;border-radius:2px}input,textarea,button{font-family:inherit}`}</style>
-    <nav style={{background:C.card,borderBottom:`1px solid ${C.cardBorder}`,padding:"0 10px",display:"flex",alignItems:"center",gap:"1px",overflowX:"auto",position:"sticky",top:0,zIndex:100,scrollbarWidth:"none"}}>
+  return(<div style={{minHeight:"100vh",width:"100%",maxWidth:"100vw",overflowX:"hidden",background:C.bg,color:C.textPrimary,fontFamily:"'Space Grotesk','Segoe UI',sans-serif",display:"flex",flexDirection:"column"}}>
+    <style>{`
+      *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+      html,body,#root{width:100%;max-width:100vw;overflow-x:hidden;margin:0;padding:0}
+      ::-webkit-scrollbar{width:4px;height:4px}
+      ::-webkit-scrollbar-thumb{background:#2a2a45;border-radius:2px}
+      input,textarea,button,select{font-family:inherit}
+      input[type=range]{width:100%}
+      input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark;color:#f0f0ff;background:#0d0d1a}
+      img{max-width:100%}
+    `}</style>
+    <nav style={{background:C.card,borderBottom:`1px solid ${C.cardBorder}`,padding:"0 10px",display:"flex",alignItems:"center",gap:"1px",overflowX:"auto",overflowY:"hidden",position:"sticky",top:0,zIndex:100,scrollbarWidth:"none",WebkitOverflowScrolling:"touch",width:"100%",maxWidth:"100vw"}}>
       <div style={{fontSize:"12px",fontWeight:700,color:C.accent,marginRight:"6px",flexShrink:0}}>◈ CC</div>
       {SESSIONS.map(s=>(<button key={s.id} onClick={()=>setSession(s.id)} style={{padding:"12px 9px",fontSize:"10px",fontWeight:session===s.id?600:400,color:session===s.id?C.accent:C.textSecondary,cursor:"pointer",background:"none",border:"none",borderBottom:`2px solid ${session===s.id?C.accent:"transparent"}`,whiteSpace:"nowrap",fontFamily:"inherit"}}>{s.label}</button>))}
     </nav>
-    <main style={{flex:1,padding:"18px 14px",maxWidth:"900px",margin:"0 auto",width:"100%"}}>
+    <main style={{flex:1,padding:"18px 14px",maxWidth:"900px",margin:"0 auto",width:"100%",minWidth:0,overflowX:"hidden"}}>
       {renderSession()}
     </main>
   </div>);
