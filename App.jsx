@@ -286,6 +286,11 @@ export default function App() {
   const [jobCat,setJobCat]=useState("all");
   const [resume,setResume]=useState({name:"",email:"",phone:"",dob:"",address:"",objective:"",edu:"",skills:"",expType:"fresher",experience:"",projects:"",achievements:"",languages:"",jd:""});
   const [resumeSaved,setResumeSaved]=useState(false);
+  const [atsScore,setAtsScore]=useState(null);
+  const [atsMatched,setAtsMatched]=useState([]);
+  const [atsMissing,setAtsMissing]=useState([]);
+  const [resumeGenerated,setResumeGenerated]=useState(false);
+  const [generatingResume,setGeneratingResume]=useState(false);
 
   // ── Study Planner state (top-level so hooks rules are satisfied) ──────────
   const [planTab,setPlanTab]=useState("goals");
@@ -436,6 +441,126 @@ export default function App() {
     const b=new Blob([txt],{type:"text/plain"});const u=URL.createObjectURL(b);
     const a=document.createElement("a");a.href=u;a.download=`resume_${resume.name||"student"}.txt`;a.click();
     setResumeSaved(true);
+  };
+
+  // ── ATS keyword extractor ────────────────────────────────────────────────
+  const escapeRTF=(str)=>{
+    if(!str)return"";
+    return String(str).replace(/\\/g,"\\\\").replace(/\{/g,"\\{").replace(/\}/g,"\\}").replace(/[\u0080-\uffff]/g,c=>`\\u${c.charCodeAt(0)}?`);
+  };
+
+  const extractKeywords=(jdText)=>{
+    if(!jdText)return[];
+    const SKILLS=new Set([
+      // Programming languages
+      "python","java","javascript","typescript","c","ruby","golang","swift","kotlin","php","scala","rust","dart","perl","bash","matlab","r",
+      // Web & frameworks
+      "html","css","react","angular","vue","nextjs","nodejs","express","django","flask","fastapi","spring","jquery","bootstrap","tailwind","redux","graphql","webpack","vite","sass",
+      // Mobile
+      "android","ios","flutter","reactnative","xamarin",
+      // Databases
+      "sql","mysql","postgresql","mongodb","sqlite","oracle","redis","firebase","cassandra","dynamodb","elasticsearch","nosql",
+      // Cloud & DevOps
+      "aws","azure","gcp","docker","kubernetes","jenkins","git","github","gitlab","linux","terraform","ansible","nginx","heroku","vercel","devops",
+      // Data / ML / AI
+      "machine learning","deep learning","nlp","computer vision","tensorflow","pytorch","keras","scikit-learn","pandas","numpy","matplotlib","tableau","powerbi","hadoop","spark","airflow","llm","langchain","data analysis","data science",
+      // Design
+      "figma","photoshop","illustrator","canva","ux","ui","wireframe","adobe","sketch",
+      // Office & tools
+      "excel","word","powerpoint","ms office","jira","confluence","notion","slack","trello","asana","postman","swagger","selenium","pytest","jest","cypress",
+      // Soft skills
+      "leadership","communication","teamwork","collaboration","problem solving","critical thinking","analytical","creativity","adaptability","time management","project management","presentation","negotiation","mentoring","research","documentation","multitasking","decision making","public speaking","attention to detail","interpersonal","planning","coordination",
+      // Domain
+      "finance","accounting","marketing","sales","operations","supply chain","logistics","healthcare","legal","business analysis","product management","customer service","content writing","seo","digital marketing","social media","auditing","investment","banking","insurance","pharmaceutical","manufacturing","civil","mechanical","electrical","electronics","telecommunications","cybersecurity","networking","encryption","testing","qa","automation","agile","scrum","kanban","microservices","api","blockchain","iot","embedded",
+    ]);
+    const text=jdText.toLowerCase().replace(/[^a-z0-9\s\+\#\.\-\/]/g," ");
+    const found=new Set();
+    // Multi-word skills first
+    SKILLS.forEach(skill=>{if(skill.includes(" ")&&text.includes(skill))found.add(skill);});
+    // Single word skills
+    text.split(/\s+/).forEach(w=>{const c=w.replace(/[^a-z0-9\+\#\.]/g,"");if(c.length>1&&SKILLS.has(c))found.add(c);});
+    // Uppercase abbreviations (AWS, SQL, API etc)
+    const abbrs=[...jdText.matchAll(/\b([A-Z]{2,8})\b/g)].map(m=>m[1].toLowerCase());
+    abbrs.forEach(a=>{if(SKILLS.has(a))found.add(a);});
+    return[...found].slice(0,40);
+  };
+
+  const generateATS=()=>{
+    setGeneratingResume(true);
+    setTimeout(()=>{
+      const jdKws=extractKeywords(resume.jd);
+      const resumeText=[resume.objective,resume.skills,resume.experience,resume.projects,resume.achievements,resume.edu].join(" ").toLowerCase();
+      const matched=jdKws.filter(kw=>resumeText.includes(kw));
+      const missing=jdKws.filter(kw=>!resumeText.includes(kw)).slice(0,12);
+      const score=jdKws.length>0?Math.min(98,Math.round((matched.length/jdKws.length)*100)):null;
+      setAtsScore(score);
+      setAtsMatched(matched);
+      setAtsMissing(missing);
+      setResumeGenerated(true);
+      setGeneratingResume(false);
+    },600);
+  };
+
+  const downloadResumeDOCX=()=>{
+    const expLabel=resume.expType==="fresher"?"Fresher (Seeking First Opportunity)":resume.expType==="internship"?"Internship Experience":"Work Experience";
+    const skillsArr=resume.skills.split(",").map(s=>s.trim()).filter(Boolean);
+    const jdKws=extractKeywords(resume.jd);
+    const resumeText=[resume.objective,resume.skills,resume.experience,resume.projects,resume.achievements].join(" ").toLowerCase();
+    const matchedKws=jdKws.filter(kw=>resumeText.includes(kw));
+
+    const e=escapeRTF;
+    const secHeader=(t)=>`\\pard\\sb200\\brdrb\\brdrs\\brdrw8\\brdrclr2 {\\f0\\fs22\\b\\cf2 ${e(t)}}\\par\\pard\\sb0`;
+    const bullet=(t)=>`\\pard\\sb40\\li360\\fi-240{\\f0\\fs20 \\bullet  ${e(t)}}\\par`;
+    const para=(t)=>`\\pard\\sb50{\\f0\\fs20 ${e(t)}}\\par`;
+
+    const expLines=resume.expType==="fresher"
+      ?[`Fresher — seeking first professional opportunity. Strong academic foundation with project experience.`]
+      :(resume.experience||"").split("\n").filter(Boolean);
+
+    const lines=[
+      "{\\rtf1\\ansi\\deff0",
+      "{\\fonttbl{\\f0 Calibri;}}",
+      "{\\colortbl ;\\red27\\green58\\blue107;\\red14\\green116\\blue161;\\red22\\green163\\blue74;}",
+      "\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1000\\margb1000",
+      // Header block
+      `\\pard\\qc\\sb60{\\f0\\fs52\\b\\cf1 ${e(resume.name||"Your Name")}}\\par`,
+      resume.objective?`\\pard\\qc\\sb40{\\f0\\fs20\\i\\cf2 ${e(resume.objective.slice(0,120)+"...")}}\\par`:"",
+      `\\pard\\qc\\sb40{\\f0\\fs18 ${[resume.phone,resume.email,resume.address,resume.dob].filter(Boolean).map(e).join("   |   ")}}\\par`,
+      `\\pard\\sb60\\brdrb\\brdrs\\brdrw20\\brdrclr1 \\par`,
+      // Objective
+      resume.objective?secHeader("CAREER OBJECTIVE")+para(resume.objective)+"\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par":"",
+      // Education
+      secHeader("EDUCATION"),
+      ...resume.edu.split("\n").filter(Boolean).map(l=>para(l)),
+      `\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`,
+      // Skills
+      skillsArr.length?secHeader("SKILLS")+`\\pard\\sb50{\\f0\\fs20 ${skillsArr.map(e).join("   \\u8226?   ")}}\\par\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`:"",
+      // Experience
+      secHeader(expLabel.toUpperCase()),
+      ...expLines.map(l=>l.trim().startsWith("-")||l.trim().startsWith("•")||l.trim().startsWith("*")?bullet(l.replace(/^[-•*]\s*/,"")): para(l)),
+      `\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`,
+      // Projects
+      resume.projects?secHeader("PROJECTS")+resume.projects.split("\n").filter(Boolean).map((l,i)=>{
+        const isBullet=l.trim().startsWith("-")||l.trim().startsWith("•")||l.trim().startsWith("*");
+        const isNum=/^\d+\./.test(l.trim());
+        return isBullet?bullet(l.replace(/^[-•*]\s*/,"")):isNum?`\\pard\\sb80\\li0{\\f0\\fs20\\b ${e(l)}}\\par`:para(l);
+      }).join("")+`\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`:"",
+      // Achievements
+      resume.achievements?secHeader("ACHIEVEMENTS & EXTRACURRICULARS")+resume.achievements.split("\n").filter(Boolean).map(l=>bullet(l.replace(/^[-•*]\s*/,""))).join("")+`\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`:"",
+      // Languages
+      resume.languages?secHeader("LANGUAGES")+para(resume.languages)+`\\pard\\sb60\\brdrb\\brdrs\\brdrw6\\brdrclr2 \\par`:"",
+      // ATS Keywords section
+      matchedKws.length?secHeader("CORE COMPETENCIES")+`\\pard\\sb50{\\f0\\fs20 ${matchedKws.map(k=>k.charAt(0).toUpperCase()+k.slice(1)).map(e).join("   |   ")}}\\par`:"",
+      "}"
+    ].filter(Boolean).join("\n");
+
+    const blob=new Blob([lines],{type:"application/rtf"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`ATS_Resume_${(resume.name||"Student").replace(/\s+/g,"_")}.rtf`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ── Derived data ──────────────────────────────────────────────────────────
@@ -1349,14 +1474,66 @@ export default function App() {
           <textarea value={resume.jd} onChange={e=>setResume(r=>({...r,jd:e.target.value}))} rows={6} placeholder="Looking for a software engineer with 0–2 yrs experience in Python, REST APIs..." style={{...st.input,resize:"vertical"}}/>
         </div>
       </div>
-      <div style={{marginTop:"14px",display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}}>
-        <button style={st.btn(C.mint)} onClick={downloadResume}>⬇ Download Resume (.txt)</button>
-        {resumeSaved&&<span style={{fontSize:"10px",color:C.mint}}>✓ Downloaded</span>}
+      {/* ── Step 1: Generate ATS Resume ─────────────────────────── */}
+      <div style={{...st.card(`${C.lavender}44`),marginTop:"14px",background:`${C.lavender}08`}}>
+        <div style={{fontWeight:700,fontSize:"13px",color:C.lavender,marginBottom:"5px"}}>🧠 Step 1 — Generate ATS Resume</div>
+        <div style={{fontSize:"11px",color:C.textSecondary,marginBottom:"10px",lineHeight:1.6}}>
+          Click below to analyse your resume against the job description and generate an ATS-optimised version.
+          {resume.jd?"":(" — ")} {!resume.jd&&<span style={{color:C.gold}}>Paste a JD above for keyword matching</span>}
+        </div>
+        <button style={{...st.btn(C.lavender),opacity:generatingResume?0.6:1}} onClick={generateATS} disabled={generatingResume}>
+          {generatingResume?"⏳ Analysing...":"🧠 Generate ATS Resume"}
+        </button>
       </div>
-      <div style={{...st.card(`${C.gold}33`),marginTop:"10px",background:`${C.gold}08`}}>
-        <div style={{fontWeight:600,fontSize:"11px",color:C.gold,marginBottom:"4px"}}>ATS Optimization Tips</div>
-        <div style={{fontSize:"10px",color:C.textSecondary,lineHeight:1.7}}>✓ Paste the job description above to get keyword-matched resume content · ✓ Use bullet points in experience · ✓ List skills matching the JD · ✓ Keep objective specific to the role · ATS score improves when your skills & objective match the JD keywords.</div>
-      </div>
+
+      {/* ── ATS Score + Download ──────────────────────────────────── */}
+      {resumeGenerated&&(<div style={{...st.card(`${atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent}44`),marginTop:"8px",background:`${atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent}08`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px",marginBottom:"10px"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:"13px"}}>
+              {resume.jd
+                ?<>ATS Score: <span style={{color:atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent,fontSize:"20px"}}>{atsScore}%</span></>
+                :"✓ Resume Generated (no JD — paste one for ATS score)"}
+            </div>
+            {resume.jd&&<div style={{fontSize:"10px",color:C.textSecondary,marginTop:"2px"}}>
+              {atsScore>=85?"Excellent — strong JD match":atsScore>=70?"Good — consider adding missing keywords":"Needs improvement — add missing keywords below"}
+            </div>}
+          </div>
+          {resume.jd&&atsScore!==null&&(
+            <div style={{width:"52px",height:"52px",borderRadius:"50%",background:`${atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent}22`,border:`3px solid ${atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontSize:"13px",fontWeight:800,color:atsScore>=85?C.mint:atsScore>=70?C.gold:C.accent}}>{atsScore}%</span>
+            </div>
+          )}
+        </div>
+
+        {/* Matched keywords */}
+        {atsMatched.length>0&&(<div style={{marginBottom:"8px"}}>
+          <div style={{fontSize:"10px",color:C.mint,fontWeight:600,marginBottom:"4px"}}>✓ Matched Keywords ({atsMatched.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>
+            {atsMatched.slice(0,20).map(kw=><span key={kw} style={{fontSize:"10px",padding:"2px 8px",borderRadius:"20px",background:`${C.mint}18`,color:C.mint}}>{kw}</span>)}
+          </div>
+        </div>)}
+
+        {/* Missing keywords */}
+        {atsMissing.length>0&&(<div style={{marginBottom:"10px"}}>
+          <div style={{fontSize:"10px",color:C.gold,fontWeight:600,marginBottom:"4px"}}>⚠ Add these to improve score ({atsMissing.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"4px"}}>
+            {atsMissing.map(kw=><span key={kw} style={{fontSize:"10px",padding:"2px 8px",borderRadius:"20px",background:`${C.gold}18`,color:C.gold}}>{kw}</span>)}
+          </div>
+        </div>)}
+
+        {/* Step 2: Download */}
+        <div style={{borderTop:`1px solid ${C.cardBorder}`,paddingTop:"10px",marginTop:"4px"}}>
+          <div style={{fontWeight:600,fontSize:"11px",marginBottom:"7px"}}>📄 Step 2 — Download Your Resume</div>
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+            <button style={st.btn(C.mint)} onClick={downloadResumeDOCX}>⬇ Download ATS Resume (.rtf)</button>
+            <button style={{...st.btnOut,fontSize:"12px"}} onClick={downloadResume}>⬇ Plain Text (.txt)</button>
+          </div>
+          <div style={{fontSize:"9px",color:C.textMuted,marginTop:"6px"}}>
+            .rtf opens in Microsoft Word, Google Docs and LibreOffice — ATS scanners read it perfectly
+          </div>
+        </div>
+      </div>)}
     </div>);
   };
 
@@ -1369,8 +1546,11 @@ export default function App() {
     const priorityCol={high:C.accent,medium:C.gold,low:C.teal};
 
     const daysUntil=(dateStr)=>{
-      const d=new Date(dateStr);const n=new Date();n.setHours(0,0,0,0);
-      return Math.ceil((d-n)/(1000*60*60*24));
+      // Parse YYYY-MM-DD directly as LOCAL date (not UTC) to avoid timezone shift
+      const [y,m,d]=dateStr.split("-").map(Number);
+      const examDate=new Date(y,m-1,d);          // local midnight
+      const today=new Date();today.setHours(0,0,0,0); // local today midnight
+      return Math.round((examDate-today)/(1000*60*60*24));
     };
 
     const tabs=[
@@ -1434,7 +1614,7 @@ export default function App() {
         <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"14px"}}>
           {planExams.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(exam=>{
             const days=daysUntil(exam.date);
-            const urgent=days<=30;const soon=days<=90;
+            const urgent=days>0&&days<=30;const soon=days>0&&days<=90;
             const col=urgent?C.accent:soon?C.gold:exam.color;
             const pct=Math.max(0,Math.min(100,Math.round((1-(days/365))*100)));
             return(
@@ -1442,7 +1622,7 @@ export default function App() {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:"14px"}}>{exam.name}</div>
-                    <div style={{fontSize:"10px",color:C.textSecondary,marginTop:"2px"}}>{new Date(exam.date).toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"})}</div>
+                    <div style={{fontSize:"10px",color:C.textSecondary,marginTop:"2px"}}>{(()=>{const[y,m,d]=exam.date.split("-").map(Number);return new Date(y,m-1,d).toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"});})()}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:"26px",fontWeight:800,color:col,lineHeight:1}}>{days<0?"Passed":days===0?"Today!":days}</div>
@@ -1452,7 +1632,7 @@ export default function App() {
                 <div style={{height:"5px",background:C.bg,borderRadius:"3px",overflow:"hidden"}}>
                   <div style={{height:"100%",width:`${pct}%`,background:`linear-gradient(90deg,${col}88,${col})`,borderRadius:"3px"}}/>
                 </div>
-                {urgent&&<div style={{fontSize:"10px",color:C.accent,marginTop:"5px",fontWeight:600}}>⚠ Less than 30 days — increase study intensity!</div>}
+                {urgent&&days>0&&<div style={{fontSize:"10px",color:C.accent,marginTop:"5px",fontWeight:600}}>⚠ Less than 30 days — increase study intensity!</div>}
                 <button onClick={()=>setPlanExams(es=>es.filter(e=>e.id!==exam.id))} style={{...st.btnOut,fontSize:"10px",padding:"4px 10px",marginTop:"8px"}}>Remove</button>
               </div>
             );
