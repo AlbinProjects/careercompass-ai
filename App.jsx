@@ -1625,7 +1625,7 @@ export default function App() {
                     <div style={{fontSize:"10px",color:C.textSecondary,marginTop:"2px"}}>{(()=>{const[y,m,d]=exam.date.split("-").map(Number);return new Date(y,m-1,d).toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"});})()}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:"26px",fontWeight:800,color:col,lineHeight:1}}>{days<0?"Passed":days===0?"Today!":days}</div>
+                    <div style={{fontSize:"26px",fontWeight:800,color:col,lineHeight:1}}>{days<0?"Completed ✓":days===0?"Today!":days}</div>
                     {days>0&&<div style={{fontSize:"10px",color:C.textMuted}}>days left</div>}
                   </div>
                 </div>
